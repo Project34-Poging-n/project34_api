@@ -57,7 +57,6 @@ try:
                         return resp
                     # als het pinbedrag er af kan dan voeren we de update uit.               
                     if(int(record[0][0]) > int(amount)):
-                        # print(int(record[0][0]) - amount)
                         cursor.execute(f"UPDATE geld SET balans = {int((int(record[0][0]) - int(amount)))} WHERE rekeningnr = '{account}';")
                         connection.commit()
                         message = jsonify(message = "geld opnemen gelukt")
@@ -78,9 +77,6 @@ try:
                 content = request.get_json(silent=True)
                 account = content["account"]
                 pincode = content["pincode"]
-                print(account)
-                print(account[4:8])
-                print(pincode)
                 if ibancontrole(account):
                     cursor.execute(f"SELECT pincode, geblokkeerd FROM rekening WHERE rekeningnr = '{account}'")
                     record = cursor.fetchall()
