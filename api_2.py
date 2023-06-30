@@ -38,7 +38,7 @@ try:
                     return resp   
                 else:
                     headers = {"Content-Type": "application/json"}
-                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[2:6]}, 'body': { "account" : account}})
+                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[4:8]}, 'body': { "account" : account}})
                     return r
         
         class withdraw(Resource):
@@ -70,7 +70,7 @@ try:
                         return resp
                 else:
                     headers = {"Content-Type": "application/json"}
-                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[2:6]}, 'body': { "account" : account, "pincode" : pincode, "balance" : amount}}) #NOOB server
+                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[4:8]}, 'body': { "account" : account, "pincode" : pincode, "balance" : amount}}) #NOOB server
                     return r
         
         class login(Resource):
@@ -78,13 +78,19 @@ try:
                 content = request.get_json(silent=True)
                 account = content["account"]
                 pincode = content["pincode"]
+                print(account)
+                print(account[4:8])
                 print(pincode)
                 if ibancontrole(account):
-                    cursor.execute(f"SELECT pincode FROM rekening WHERE rekeningnr = '{account}'")
+                    cursor.execute(f"SELECT pincode, geblokkeerd FROM rekening WHERE rekeningnr = '{account}'")
                     record = cursor.fetchall()
                     if not record:
                         message = jsonify(message = "verkeerde invoer")
                         resp = make_response(message, 403)
+                        return resp
+                    elif record[0][1] == 1:
+                        message = jsonify(message = "pas geblokkeerd", status = False, pincode = "0000")
+                        resp = make_response(message, 402)
                         return resp
                     elif int(pincode) == int(record[0][0]):
                         message = jsonify(message = "pincode correct", status = True, pincode = f"{pincode}")
@@ -96,8 +102,18 @@ try:
                         return resp
                 else:
                     headers = {"Content-Type": "application/json"}
-                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[2:6]}, 'body': { "account" : account, "pincode" : pincode}})
+                    r = requests.post("https://145.24.222.51:8443/api/v1/route-data", verify = False, json={'head': { "fromCtry" : "UK" , "fromBank" : "PECI" , "toCtry" : account[:2] , "toBank" : account[4:8]}, 'body': { "account" : account, "pincode" : pincode}})
                     return r
+
+        class block(Resource):
+            def post(self):
+                content = request.get_json(silent=True)
+                account = content["account"]
+                cursor.execute(f"UPDATE rekening SET geblokkeerd = 1 WHERE rekeningnr = '{account}';")
+                connection.commit()
+                message = jsonify(message = "pas geblokkeerd")
+                resp = make_response(message, 200)
+                return resp
 
 except Error as e:
     print("Error while connecting to MySQL", e)
@@ -106,7 +122,7 @@ except Error as e:
 api.add_resource(login, '/login')
 api.add_resource(balance, '/balance')
 api.add_resource(withdraw, '/withdraw')
-
+api.add_resource(block, '/block')
 
 if __name__ == "__main__":
     app.run(host="145.24.222.207")
